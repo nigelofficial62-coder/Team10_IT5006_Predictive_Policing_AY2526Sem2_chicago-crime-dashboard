@@ -18,13 +18,23 @@ st.set_page_config(
 # --- CSS STYLING ---
 st.markdown("""
 <style>
-    /* 1. Metric Value Styling */
+    /* 1. RESPONSIVE Metric Value Styling */
     [data-testid="stMetricValue"] {
-        font-size: 26px !important;
+        font-size: clamp(18px, 1.8vw, 26px) !important; /* Dynamic sizing */
         font-weight: bold !important;
-        overflow: visible !important;
+        word-wrap: break-word !important;       /* Break long numbers if needed */
+        white-space: pre-wrap !important;       /* Allow wrapping to new lines */
+        line-height: 1.2 !important;            /* Tighten line height so wrapped text fits */
+        height: auto !important;                /* Allow box to grow tall if text wraps */
+        min-height: 50px !important;            /* Ensure consistency */
+    }
+    
+    /* Optional: Fix the label size too so it doesn't crowd the number */
+    [data-testid="stMetricLabel"] {
+        font-size: clamp(12px, 1.2vw, 14px) !important;
+        width: 100% !important;
+        overflow-wrap: break-word !important;
         white-space: normal !important;
-        min-width: 0 !important;
     }
     
     /* 2. Section Headers */
