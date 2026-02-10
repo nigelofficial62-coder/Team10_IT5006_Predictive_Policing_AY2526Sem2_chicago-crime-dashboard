@@ -15,29 +15,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- HELPER: FORMAT NUMBERS (NEW) ---
+def format_big_number(num):
+    """Formats large numbers (e.g., 1,200,000 -> 1.2M, 45,000 -> 45.0K)."""
+    if num >= 1_000_000:
+        return f"{num/1_000_000:.1f}M"
+    elif num >= 1_000:
+        return f"{num/1_000:.1f}K"
+    return f"{num:,}"
+
 # --- CSS STYLING ---
 st.markdown("""
 <style>
     /* 1. RESPONSIVE Metric Value Styling */
     [data-testid="stMetricValue"] {
-        font-size: clamp(18px, 1.8vw, 26px) !important; /* Dynamic sizing */
+        font-size: clamp(18px, 1.8vw, 26px) !important; 
         font-weight: bold !important;
-        word-wrap: break-word !important;       /* Break long numbers if needed */
-        white-space: pre-wrap !important;       /* Allow wrapping to new lines */
-        line-height: 1.2 !important;            /* Tighten line height so wrapped text fits */
-        height: auto !important;                /* Allow box to grow tall if text wraps */
-        min-height: 50px !important;            /* Ensure consistency */
+        word-wrap: break-word !important;       
+        white-space: pre-wrap !important;       
+        line-height: 1.2 !important;            
+        height: auto !important;                
+        min-height: 50px !important;            
     }
     
-    /* Optional: Fix the label size too so it doesn't crowd the number */
     [data-testid="stMetricLabel"] {
         font-size: clamp(12px, 1.2vw, 14px) !important;
         width: 100% !important;
-        overflow-wrap: break-word !important;
         white-space: normal !important;
     }
     
-    /* 2. Section Headers */
     .section-header {
         font-size: 24px;
         font-weight: bold;
@@ -48,7 +54,6 @@ st.markdown("""
         color: #333;
     }
     
-    /* 3. Status Box */
     .status-box {
         padding: 10px;
         background-color: #e8f4f8;
@@ -59,18 +64,11 @@ st.markdown("""
         color: #0f52ba;
     }
     
-    /* 4. Container Padding */
-    .st-emotion-cache-1r6slb0 {
-        padding: 10px;
-    }
-    
-    /* 5. Align 'Clear Selection' Button */
     div.stButton > button {
         margin-top: 28px; 
         width: 100%;
     }
     
-    /* 6. Benchmark Text */
     .benchmark-text {
         text-align: center;
         font-size: 13px;
@@ -81,8 +79,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- HELPER: CUSTOM METRIC CARD ---
+# --- HELPER: CUSTOM METRIC CARD (UPDATED) ---
 def custom_metric(label, value):
+    # FIX: Changed white-space to 'normal' so text wraps if it's too long
     st.markdown(f"""
     <div style="
         background-color: #f9f9f9; 
@@ -92,7 +91,7 @@ def custom_metric(label, value):
         text-align: center;
         margin-bottom: 10px;">
         <div style="font-size: 14px; color: #666; margin-bottom: 2px;">{label}</div>
-        <div style="font-size: 22px; font-weight: bold; color: #333; white-space: nowrap;">{value}</div>
+        <div style="font-size: 22px; font-weight: bold; color: #333; white-space: normal;">{value}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -100,6 +99,7 @@ def custom_metric(label, value):
 @st.cache_data
 def load_crime_data():
     try:
+        # Loading your Lite Zip
         df = pd.read_csv('Crime_Dataset_Lite.zip')
         df['Date'] = pd.to_datetime(df['Date'])
         df['Year'] = df['Date'].dt.year
@@ -131,7 +131,7 @@ def load_census_data():
                 elif len(df) == 77:
                      df['Community Area'] = range(1, 78)
 
-                # --- METRICS ---
+                # Metrics calculations (Kept original logic)
                 if 'TOT_POP' in df.columns: pop = df['TOT_POP'].replace(0, 1)
                 else: pop = 1
                 
@@ -174,7 +174,6 @@ def load_census_data():
                 if 'MED_HV' in df.columns: df['Median_HomeVal'] = df['MED_HV']
                 else: df['Median_HomeVal'] = 0
 
-                # Weighted Avg Denominators
                 if 'UNEMP' in df.columns and 'IN_LBFRC' in df.columns:
                     df['Labor_Force'] = df['IN_LBFRC'].replace(0, 1)
                     df['Pct_Unemp'] = (df['UNEMP'] / df['Labor_Force']) * 100
@@ -265,42 +264,6 @@ def run_clustering(census_df):
     census_df = census_df.copy()
     census_df['Cluster'] = pd.Series(labels, index=X.index).map(remap)
     return census_df
-
-# --- HELPER: BULLET CHART ---
-def make_bullet(label, value, median_val, suffix="", prefix="", color="#1f77b4"):
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=[value], y=[label], orientation='h',
-        marker_color=color, name=label,
-        text=f"{prefix}{value:,.1f}{suffix}", textposition='outside',
-        textfont=dict(size=20, color='black', family="Arial Black"), 
-        hoverinfo='text', hovertext=f"{label}: {prefix}{value:,.1f}{suffix}"
-    ))
-    fig.add_trace(go.Scatter(
-        x=[median_val, median_val], y=[-0.5, 0.5], 
-        mode='lines', line=dict(color='#555555', width=3), 
-        name='City Median', hoverinfo='skip'
-    ))
-    fig.add_trace(go.Scatter(
-        x=[median_val], y=[0.55],
-        mode='markers',
-        marker=dict(symbol='triangle-down', size=12, color='#555555'), 
-        hoverinfo='text', hovertext=f"Benchmark: {prefix}{median_val:,.1f}{suffix}"
-    ))
-    max_range = max(value, median_val) * 1.3
-    if max_range == 0: max_range = 100
-    fig.update_layout(
-        barmode='overlay', 
-        xaxis=dict(range=[0, max_range], showgrid=False, visible=False),
-        yaxis=dict(showgrid=False, visible=False),
-        margin=dict(l=0, r=0, t=30, b=10), 
-        height=120, 
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        title=dict(text=label, font=dict(size=18, color="#333", family="Arial"), x=0)
-    )
-    return fig
 
 # --- HELPER: BENCHMARK CALCULATOR ---
 def calculate_benchmark(df, metric, denominator=None, method='mean'):
@@ -472,13 +435,13 @@ with col2:
     rate_per_1k = (tot / pop_val * 1000) if pop_val > 0 else 0
 
     c1, c2, c3 = st.columns(3)
-    with c1: custom_metric("Incidents", f"{tot:,}")
+    # FIX: Applied format_big_number here
+    with c1: custom_metric("Incidents", format_big_number(tot))
     with c2: custom_metric("Rate / 1k", f"{rate_per_1k:.1f}")
     with c3: custom_metric("Arrest %", f"{eff:.1f}%")
 
     st.markdown("#### Top Crime Types")
     if not df_view.empty:
-        # TOP 5 CRIMES (Expanded & Compact List)
         top_crimes = df_view['Primary Type'].value_counts().head(5)
         for i, (crime, count) in enumerate(top_crimes.items(), 1):
             st.markdown(f"<div style='font-size: 14px; margin-bottom: 4px;'><b>{i}. {crime}</b>: {count:,}</div>", unsafe_allow_html=True)
@@ -513,54 +476,116 @@ with col2:
             avg_asian = (census_year_data['ASIAN'].sum() / tot_pop_city) * 100
             st.caption(f"**Vs. City Avg:** White: {avg_white:.1f}% | Black: {avg_black:.1f}% | Hisp: {avg_hisp:.1f}% | Asian: {avg_asian:.1f}%")
 
-# --- SOCIOECONOMIC DASHBOARD ---
+# --- SOCIOECONOMIC DASHBOARD (UI FIX: RANKINGS, SMART COLORS & >150k DEFAULT) ---
 if geo_level == 'Community Area' and sel_row is not None and census_year_data is not None:
     st.markdown("---") 
     st.markdown('<div class="section-header">Socioeconomic Profile (Selected vs. City Benchmark)</div>', unsafe_allow_html=True)
     
-    THEME_COLOR = "#1f77b4"
+    # 1. Helper to calculate Rank (e.g., "1st", "15th")
+    def get_rank_str(df, metric, current_val, high_is_rank_1=True):
+        try:
+            # Rank the entire city data for this metric
+            ranks = df[metric].rank(ascending=not high_is_rank_1, method='min')
+            r = ranks[df[metric] == current_val].iloc[0]
+            
+            n = int(r)
+            if 11 <= (n % 100) <= 13: suffix = 'th'
+            else: suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+            return f"({n}{suffix})"
+        except:
+            return ""
 
-    def render_box(col, label, val, benchmark_val, suffix="", prefix="", benchmark_label="Median"):
-        with col.container(border=True):
-            st.plotly_chart(make_bullet(label, val, benchmark_val, suffix=suffix, prefix=prefix, color=THEME_COLOR), use_container_width=True)
-            st.markdown(f'<div class="benchmark-text">City {benchmark_label}: <b>{prefix}{benchmark_val:,.1f}{suffix}</b></div>', unsafe_allow_html=True)
+    # 2. UI RENDERER (Fixed: Added benchmark_label back)
+    def render_box(col, label, val, benchmark_val, rank_str, suffix="", prefix="", benchmark_label="Avg", is_bad_high=False):
+        import textwrap 
+        
+        # Color Logic
+        diff = val - benchmark_val
+        pct_diff = (diff / benchmark_val) * 100 if benchmark_val != 0 else 0
+        
+        # Neutral Zone: If within 5% of city average, stay Black
+        if abs(pct_diff) < 5: 
+            color = "#333333" 
+        elif is_bad_high:
+            color = "#d62728" if diff > 0 else "#2ca02c" # Red if High (Bad)
+        else:
+            color = "#2ca02c" if diff > 0 else "#d62728" # Green if High (Good)
 
+        # HTML Block
+        html_code = textwrap.dedent(f"""
+            <div style="background-color: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 14px; color: #555; margin-bottom: 5px;">
+                    {label}
+                </div>
+                <div style="font-size: 24px; font-weight: bold; color: {color}; margin-bottom: 8px;">
+                    {prefix}{val:,.1f}{suffix} <span style="font-size: 16px; color: #888; font-weight: normal;">{rank_str}</span>
+                </div>
+                <div style="font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
+                    City {benchmark_label}: <b>{prefix}{benchmark_val:,.1f}{suffix}</b>
+                </div>
+            </div>
+        """)
+        
+        with col:
+            st.markdown(html_code, unsafe_allow_html=True)
+
+    # --- RENDER METRICS ---
     r1c1, r1c2, r1c3, r1c4 = st.columns(4)
     
+    # 1. Median Income
     bm_inc = calculate_benchmark(census_year_data, 'Median_Income', method='median')
-    render_box(r1c1, "Median Income", sel_row['Median_Income'], bm_inc, prefix="$", benchmark_label="Median")
+    rank_inc = get_rank_str(census_year_data, 'Median_Income', sel_row['Median_Income'], high_is_rank_1=True)
+    render_box(r1c1, "Median Income", sel_row['Median_Income'], bm_inc, rank_inc, prefix="$", is_bad_high=False)
     
+    # 2. Home Value
     bm_hv = calculate_benchmark(census_year_data, 'Median_HomeVal', method='median')
-    render_box(r1c2, "Median Home Value", sel_row['Median_HomeVal'], bm_hv, prefix="$", benchmark_label="Median")
+    rank_hv = get_rank_str(census_year_data, 'Median_HomeVal', sel_row['Median_HomeVal'], high_is_rank_1=True)
+    render_box(r1c2, "Median Home Value", sel_row['Median_HomeVal'], bm_hv, rank_hv, prefix="$", is_bad_high=False)
     
+    # 3. Poverty
     bm_low = calculate_benchmark(census_year_data, 'Pct_LowIncome', denominator='Calculated_HH', method='mean')
-    render_box(r1c3, "Poverty (<$50k)", sel_row['Pct_LowIncome'], bm_low, suffix="%", benchmark_label="Avg")
+    rank_low = get_rank_str(census_year_data, 'Pct_LowIncome', sel_row['Pct_LowIncome'], high_is_rank_1=False)
+    render_box(r1c3, "Poverty (<$50k)", sel_row['Pct_LowIncome'], bm_low, rank_low, suffix="%", is_bad_high=True)
     
-    wealth_label = sel_row.get('Wealth_Label', "Wealth (>$75k)")
+    # 4. Wealth (Updated Default to >$150k)
+    wealth_label = sel_row.get('Wealth_Label', "Wealth (>$150k)")
     bm_high = calculate_benchmark(census_year_data, 'Pct_HighIncome', denominator='Calculated_HH', method='mean')
-    render_box(r1c4, wealth_label, sel_row['Pct_HighIncome'], bm_high, suffix="%", benchmark_label="Avg")
+    rank_high = get_rank_str(census_year_data, 'Pct_HighIncome', sel_row['Pct_HighIncome'], high_is_rank_1=True)
+    render_box(r1c4, wealth_label, sel_row['Pct_HighIncome'], bm_high, rank_high, suffix="%", is_bad_high=False)
 
     r2c1, r2c2, r2c3 = st.columns(3)
     
+    # 5. No High School
     bm_nohs = calculate_benchmark(census_year_data, 'Pct_NoHS', denominator='Pop_Over25', method='mean')
-    render_box(r2c1, "No High School Diploma", sel_row['Pct_NoHS'], bm_nohs, suffix="%", benchmark_label="Avg")
+    rank_nohs = get_rank_str(census_year_data, 'Pct_NoHS', sel_row['Pct_NoHS'], high_is_rank_1=False)
+    render_box(r2c1, "No High School Diploma", sel_row['Pct_NoHS'], bm_nohs, rank_nohs, suffix="%", is_bad_high=True)
     
+    # 6. Bachelors
     bm_bach = calculate_benchmark(census_year_data, 'Pct_Bach', denominator='Pop_Over25', method='mean')
-    render_box(r2c2, "Bachelor's Degree+", sel_row['Pct_Bach'], bm_bach, suffix="%", benchmark_label="Avg")
+    rank_bach = get_rank_str(census_year_data, 'Pct_Bach', sel_row['Pct_Bach'], high_is_rank_1=True)
+    render_box(r2c2, "Bachelor's Degree+", sel_row['Pct_Bach'], bm_bach, rank_bach, suffix="%", is_bad_high=False)
     
+    # 7. Unemployment
     bm_unemp = calculate_benchmark(census_year_data, 'Pct_Unemp', denominator='Labor_Force', method='mean')
-    render_box(r2c3, "Unemployment Rate", sel_row['Pct_Unemp'], bm_unemp, suffix="%", benchmark_label="Avg")
+    rank_unemp = get_rank_str(census_year_data, 'Pct_Unemp', sel_row['Pct_Unemp'], high_is_rank_1=False)
+    render_box(r2c3, "Unemployment Rate", sel_row['Pct_Unemp'], bm_unemp, rank_unemp, suffix="%", is_bad_high=True)
 
     r3c1, r3c2, r3c3 = st.columns(3)
     
+    # 8. Immigrant Pop
     bm_fb = calculate_benchmark(census_year_data, 'Pct_ForeignBorn', denominator='TOT_POP', method='mean')
-    render_box(r3c1, "Immigrant Population", sel_row['Pct_ForeignBorn'], bm_fb, suffix="%", benchmark_label="Avg")
+    rank_fb = get_rank_str(census_year_data, 'Pct_ForeignBorn', sel_row['Pct_ForeignBorn'], high_is_rank_1=True)
+    render_box(r3c1, "Immigrant Population", sel_row['Pct_ForeignBorn'], bm_fb, rank_fb, suffix="%", is_bad_high=False)
     
+    # 9. HH Size
     bm_hh = calculate_benchmark(census_year_data, 'Avg_HH_Size', denominator='Calculated_HH', method='mean')
-    render_box(r3c2, "Average Household Size", sel_row['Avg_HH_Size'], bm_hh, benchmark_label="Avg")
+    rank_hh = get_rank_str(census_year_data, 'Avg_HH_Size', sel_row['Avg_HH_Size'], high_is_rank_1=True)
+    render_box(r3c2, "Average Household Size", sel_row['Avg_HH_Size'], bm_hh, rank_hh, benchmark_label="Avg")
     
+    # 10. No Vehicle
     bm_noveh = calculate_benchmark(census_year_data, 'Pct_NoVeh', denominator='Calculated_HH', method='mean')
-    render_box(r3c3, "Households with No Vehicles", sel_row['Pct_NoVeh'], bm_noveh, suffix="%", benchmark_label="Avg")
+    rank_noveh = get_rank_str(census_year_data, 'Pct_NoVeh', sel_row['Pct_NoVeh'], high_is_rank_1=False)
+    render_box(r3c3, "Households with No Vehicles", sel_row['Pct_NoVeh'], bm_noveh, rank_noveh, suffix="%", is_bad_high=True)
 
 # --- ROW 3: TRENDS & HOURLY ---
 st.markdown("---")
