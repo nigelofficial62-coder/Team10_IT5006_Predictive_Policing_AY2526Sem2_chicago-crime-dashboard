@@ -90,7 +90,7 @@ def custom_metric(label, value):
 @st.cache_data
 def load_crime_data():
     try:
-        df = pd.read_csv('Crime_Dataset_Final.csv')
+        df = pd.read_csv('Crime_Dataset_Lite.zip')
         df['Date'] = pd.to_datetime(df['Date'])
         df['Year'] = df['Date'].dt.year
         df['Month'] = df['Date'].dt.month_name()
@@ -101,7 +101,7 @@ def load_crime_data():
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
         return df
     except FileNotFoundError:
-        st.error("❌ Crime_Dataset_Final.csv not found.")
+        st.error("❌ Crime_Dataset_Lite.zip not found.")
         return pd.DataFrame()
 
 @st.cache_data
@@ -371,7 +371,7 @@ if valid_communities is not None and geo_level == 'Community Area':
     gdf = gdf[gdf['geometry_id'].isin(valid_communities)].reset_index(drop=True)
 
 # --- VISUALS ---
-st.title("Chicago Crime Command Center")
+st.title("IT5006 Chicago Crime Dashboard")
 
 if years[0] == years[1]: year_text = f"{years[0]}"
 else: year_text = f"{years[0]} - {years[1]}"
