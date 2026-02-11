@@ -91,7 +91,7 @@ def custom_metric(label, value):
         text-align: center;
         margin-bottom: 10px;">
         <div style="font-size: 14px; color: #666; margin-bottom: 2px;">{label}</div>
-        <div style="font-size: 22px; font-weight: bold; color: #333; white-space: normal;">{value}</div>
+        <div style="font-size: 22px; font-weight: bold; color: #333; white-space: nowrap;">{value}</div>
     </div>
     """, unsafe_allow_html=True)
 
